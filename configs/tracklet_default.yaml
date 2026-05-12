@@ -1,0 +1,82 @@
+# Default training config for the tracklet-guided UAV detector.
+# Override per-experiment via YAML or CLI flags.
+
+model_name: tracklet_recurrent_unet      # tracklet_recurrent_unet | recurrent_unet_no_lstm | cnn_gru
+
+batch_size: 8
+train_samples_per_epoch: 512
+val_samples: 128
+epochs: 5
+learning_rate: 1.0e-3
+weight_decay: 1.0e-4
+grad_clip: 1.0
+num_workers: 0
+device: auto
+checkpoint_dir: checkpoints/tracklet
+log_every: 10
+seed: 0
+
+dataset:
+  snr_range_db: [-15.0, 5.0]
+  n_choices: [10]
+  sequence_type_probs:
+    positive_uav: 0.4
+    empty_background: 0.2
+    hard_negative: 0.2
+    mixed_uav_and_distractors: 0.2
+  seed: 0
+  positive_radius_px: 3.0
+  positive_min_visible_overlap: 3
+  heatmap_gaussian_sigma: 1.5
+  max_tracklets_per_sequence: 16
+  yield_balanced: true
+  negatives_per_positive: 3
+  hard_negative_cache_path: null
+  mined_negative_sampling_prob: 0.0
+
+  base_config:
+    n_frames: 10
+    canvas_shape: [128, 128]
+    target_sigma: 1.0
+    noise_sigma: 1.0
+    motion: cv
+    speed_min_px_per_frame: 0.3
+    speed_max_px_per_frame: 1.5
+
+  evidence:
+    evidence_local_window: 9
+    evidence_gaussian_sigma: 1.0
+    evidence_w_local_z: 0.4
+    evidence_w_matched: 0.4
+    evidence_w_temporal_diff: 0.2
+
+  candidates:
+    candidate_top_k: 200
+    candidate_nms_radius: 3
+    candidate_min_score: null
+    crop_size: 31
+
+  tracklets:
+    tracklet_len: 10
+    tracklet_beam_size: 200
+    tracklet_max_link_distance: 4.0
+    tracklet_max_misses: 3
+    tracklet_start_top_k: 50
+    tracklet_motion_penalty: 0.1
+    tracklet_miss_penalty: 0.5
+    tracklet_min_observed_points: 3
+    tracklet_final_top_m: 100
+
+  crop_tubes:
+    crop_size: 31
+    channels: [raw, local_z, matched, temporal_diff, evidence]
+
+loss:
+  lambda_track: 1.0
+  lambda_heatmap: 1.0
+  lambda_visibility: 0.5
+  use_focal_loss: true
+  focal_gamma: 2.0
+  focal_alpha: 0.25
+  heatmap_negative_weight: 0.0
+  visibility_negative_weight: 0.1

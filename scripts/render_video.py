@@ -1,15 +1,19 @@
 """Render synthetic sequences as MP4 videos (or GIFs by extension).
 
-Three modes:
+Four modes:
     --mode single       one sequence, one panel
     --mode snr-grid     four SNR levels side-by-side (the "waterfall feel")
     --mode wildcard     four wildcard configurations side-by-side
+    --mode types-grid   the four sequence_type values side-by-side
+                        (positive_uav / empty_background / hard_negative /
+                        mixed_uav_and_distractors)
 
 Output container is chosen by the --out extension (.mp4, .mov, .gif).
 
 Examples:
-    python -m scripts.render_video --mode snr-grid  --out /tmp/snr_grid.mp4
-    python -m scripts.render_video --mode wildcard  --out /tmp/wildcard.mp4
+    python -m scripts.render_video --mode snr-grid    --out /tmp/snr_grid.mp4
+    python -m scripts.render_video --mode wildcard    --out /tmp/wildcard.mp4
+    python -m scripts.render_video --mode types-grid  --out /tmp/types.mp4
     python -m scripts.render_video --mode single --snr-db -10 --out /tmp/hard.mp4
 """
 
@@ -118,7 +122,7 @@ def _make_single_gif(sample: SequenceSample, out_path: Path, fps: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=["single", "snr-grid", "wildcard"], default="snr-grid")
+    parser.add_argument("--mode", choices=["single", "snr-grid", "wildcard", "types-grid"], default="snr-grid")
     parser.add_argument("--out", type=Path, default=Path("/tmp/sample.mp4"))
     parser.add_argument("--n", type=int, default=30)
     parser.add_argument("--fps", type=int, default=8)
@@ -149,6 +153,35 @@ def main() -> None:
             for snr in snrs
         ]
         labels = [f"SNR = {snr:+.0f} dB" for snr in snrs]
+        _make_grid_gif(samples, labels, args.out, args.fps, ncols=2)
+
+    elif args.mode == "types-grid":
+        # Same low-SNR conditions across all four sequence types so visually you
+        # see only what changes: target presence and distractors.
+        common = dict(
+            n_frames=args.n,
+            snr_db=args.snr_db if args.snr_db != -5.0 else -3.0,
+            clutter_rms=0.4,
+            clutter_drift_px_per_frame=0.2,
+            jitter_std_px=0.5,
+            target_dropout_enabled=True,
+            target_dropout_prob=0.15,
+            target_min_visible_frames=3,
+            distractor_count_min=2,
+            distractor_count_max=4,
+            distractor_peak_snr_db_min=-8.0,
+            distractor_peak_snr_db_max=2.0,
+            speed_max_px_per_frame=1.0,
+            seed=args.seed,
+        )
+        configs = [
+            ("positive UAV",             SequenceConfig(sequence_type="positive_uav", **common)),
+            ("empty background",         SequenceConfig(sequence_type="empty_background", **common)),
+            ("hard negative",            SequenceConfig(sequence_type="hard_negative", **common)),
+            ("UAV + distractors",        SequenceConfig(sequence_type="mixed_uav_and_distractors", **common)),
+        ]
+        samples = [generate_sequence(cfg) for _, cfg in configs]
+        labels = [label for label, _ in configs]
         _make_grid_gif(samples, labels, args.out, args.fps, ncols=2)
 
     elif args.mode == "wildcard":
