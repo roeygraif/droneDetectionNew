@@ -1,0 +1,119 @@
+device=cpu
+Generating curriculum datasets...
+  warmup     (+2..+10 dB): train=1600 tubes (354 pos)  val=500 tubes (109 pos)
+  transition (-5..+2 dB): train=4000 tubes (481 pos)  val=1000 tubes (112 pos)
+  finetune   (-15..-3 dB): train=9640 tubes (4640 pos)  val=3000 tubes (172 pos)
+  built in 176.0s
+
+=== Stage 1 (warmup) — SNR +2..+10 dB ===
+[warmup  ] Epoch  0 | train_loss=0.6947  val_loss=0.2482  val_roc_auc=0.996  val_pr_auc=0.988
+             ^ new best val_roc_auc=0.996; snapshot saved
+[warmup  ] Epoch  1 | train_loss=0.3566  val_loss=0.2630  val_roc_auc=0.976  val_pr_auc=0.941
+[warmup  ] Epoch  2 | train_loss=0.2387  val_loss=0.1286  val_roc_auc=0.998  val_pr_auc=0.993
+             ^ new best val_roc_auc=0.998; snapshot saved
+[warmup  ] Epoch  3 | train_loss=0.1834  val_loss=0.1168  val_roc_auc=0.997  val_pr_auc=0.992
+[warmup  ] Epoch  4 | train_loss=0.1407  val_loss=0.1697  val_roc_auc=0.992  val_pr_auc=0.979
+[warmup  ] Epoch  5 | train_loss=0.1502  val_loss=0.1216  val_roc_auc=0.998  val_pr_auc=0.994
+             ^ new best val_roc_auc=0.998; snapshot saved
+[warmup  ] Restored best-val checkpoint (val_roc_auc=0.998)
+Stage 1 done in 59.6s. Best val_roc_auc=0.998
+
+=== Stage 2 (transition) — SNR -5..+2 dB ===
+[transitn] Epoch  6 | train_loss=0.3240  val_loss=0.2036  val_roc_auc=0.916  val_pr_auc=0.707
+             ^ new best val_roc_auc=0.916; snapshot saved
+[transitn] Epoch  7 | train_loss=0.2703  val_loss=0.2483  val_roc_auc=0.920  val_pr_auc=0.725
+             ^ new best val_roc_auc=0.920; snapshot saved
+[transitn] Epoch  8 | train_loss=0.2523  val_loss=0.1859  val_roc_auc=0.926  val_pr_auc=0.739
+             ^ new best val_roc_auc=0.926; snapshot saved
+[transitn] Epoch  9 | train_loss=0.2441  val_loss=0.2147  val_roc_auc=0.930  val_pr_auc=0.729
+             ^ new best val_roc_auc=0.930; snapshot saved
+[transitn] Epoch 10 | train_loss=0.2543  val_loss=0.2113  val_roc_auc=0.911  val_pr_auc=0.670
+[transitn] Restored best-val checkpoint (val_roc_auc=0.930)
+Stage 2 done in 79.2s. Best val_roc_auc=0.930
+
+=== Stage 3 (finetune) — SNR -15..-3 dB ===
+  rehearsal: +400 stage-1 tubes, +1200 stage-2 tubes on top of 9640 stage-3 tubes
+[finetune] Epoch 11 | train_loss=0.3677  val_loss=0.2016  val_roc_auc=0.659  val_pr_auc=0.124
+             ^ new best val_roc_auc=0.659; snapshot saved
+[finetune] Epoch 12 | train_loss=0.3594  val_loss=0.1726  val_roc_auc=0.663  val_pr_auc=0.126
+             ^ new best val_roc_auc=0.663; snapshot saved
+[finetune] Epoch 13 | train_loss=0.3593  val_loss=0.1879  val_roc_auc=0.664  val_pr_auc=0.133
+             ^ new best val_roc_auc=0.664; snapshot saved
+[finetune] Epoch 14 | train_loss=0.3525  val_loss=0.2071  val_roc_auc=0.663  val_pr_auc=0.134
+[finetune] Epoch 15 | train_loss=0.3598  val_loss=0.1964  val_roc_auc=0.660  val_pr_auc=0.131
+[finetune] Epoch 16 | train_loss=0.3575  val_loss=0.1712  val_roc_auc=0.665  val_pr_auc=0.133
+             ^ new best val_roc_auc=0.665; snapshot saved
+[finetune] Epoch 17 | train_loss=0.3437  val_loss=0.1708  val_roc_auc=0.670  val_pr_auc=0.137
+             ^ new best val_roc_auc=0.670; snapshot saved
+[finetune] Epoch 18 | train_loss=0.3464  val_loss=0.2046  val_roc_auc=0.663  val_pr_auc=0.130
+[finetune] Epoch 19 | train_loss=0.3464  val_loss=0.1888  val_roc_auc=0.666  val_pr_auc=0.138
+[finetune] Epoch 20 | train_loss=0.3530  val_loss=0.2081  val_roc_auc=0.667  val_pr_auc=0.141
+[finetune] Restored best-val checkpoint (val_roc_auc=0.670)
+Stage 3 done in 712.2s. Best val_roc_auc=0.670
+
+=== Stage 4 (mining + remediation) — SNR -15..-3 dB ===
+  mined 142 hard-negative tubes from 1200 target-absent sequences
+  mined score range: [0.500, 0.706]  median 0.562
+  stage-4 train pool: 11382 tubes (stage-3 pool: 11240, mined x1: 142)
+[mining  ] Epoch 21 | train_loss=0.3478  val_loss=0.1903  val_roc_auc=0.670  val_pr_auc=0.138
+             ^ new best val_roc_auc=0.670; snapshot saved
+[mining  ] Epoch 22 | train_loss=0.3488  val_loss=0.1793  val_roc_auc=0.670  val_pr_auc=0.134
+[mining  ] Epoch 23 | train_loss=0.3468  val_loss=0.1797  val_roc_auc=0.668  val_pr_auc=0.138
+[mining  ] Epoch 24 | train_loss=0.3479  val_loss=0.1819  val_roc_auc=0.666  val_pr_auc=0.138
+[mining  ] Epoch 25 | train_loss=0.3516  val_loss=0.1840  val_roc_auc=0.666  val_pr_auc=0.141
+[mining  ] Restored best-val checkpoint (val_roc_auc=0.670)
+Stage 4 done in 517.5s. Best val_roc_auc=0.670
+
+=== Stage 5 (iterative mining round 2) — SNR -15..-3 dB ===
+  mined 251 new hard-negative tubes from 2000 target-absent sequences (round 2)
+  round-2 mined score range: [0.500, 0.713]  median 0.545
+  stage-5 train pool: 11633 tubes (11240 stage-3 + 142 round-1 + 251 round-2)
+[iter-mine] Epoch 26 | train_loss=0.3586  val_loss=0.1946  val_roc_auc=0.669  val_pr_auc=0.142
+             ^ new best val_roc_auc=0.669; snapshot saved
+[iter-mine] Epoch 27 | train_loss=0.3554  val_loss=0.1906  val_roc_auc=0.668  val_pr_auc=0.142
+[iter-mine] Epoch 28 | train_loss=0.3582  val_loss=0.1856  val_roc_auc=0.668  val_pr_auc=0.149
+[iter-mine] Epoch 29 | train_loss=0.3426  val_loss=0.1812  val_roc_auc=0.663  val_pr_auc=0.141
+[iter-mine] Epoch 30 | train_loss=0.3477  val_loss=0.1712  val_roc_auc=0.664  val_pr_auc=0.143
+[iter-mine] Restored best-val checkpoint (val_roc_auc=0.669)
+Stage 5 done in 664.6s. Best val_roc_auc=0.669
+Saved model checkpoint to /Users/roeygraif/Documents/GitHub/droneDetectionNew/demo_outputs/model_checkpoint.pt
+  -> 01_easy_uav_snr+10.mp4: score=0.817  20 tracklets  [HIT]  verdict_color=darkgreen
+  -> 02_easy_uav_snr+5.mp4: score=0.898  20 tracklets  [HIT]  verdict_color=darkgreen
+  -> 03_strong_uav_snr+3.mp4: score=0.905  20 tracklets  [HIT]  verdict_color=darkgreen
+  -> 04_equal_uav_snr_0.mp4: score=0.801  20 tracklets  [HIT]  verdict_color=darkgreen
+  -> 05_threshold_uav_snr-3.mp4: score=0.690  20 tracklets  [HIT]  verdict_color=darkgreen
+  -> 06_threshold_uav_snr-3_alt.mp4: score=0.722  20 tracklets  [HIT]  verdict_color=darkgreen
+  -> 07_marginal_uav_snr-6.mp4: score=0.567  20 tracklets  [HIT]  verdict_color=darkgreen
+  -> 08_hard_uav_snr-10.mp4: score=0.368  20 tracklets  [MISS]  verdict_color=darkgreen
+  -> 09_impossible_uav_snr-15.mp4: score=0.430  20 tracklets  [MISS]  verdict_color=darkgreen
+  -> 10_empty_snr-3.mp4: score=0.406  20 tracklets  [OK]  verdict_color=darkgreen
+  -> 11_hard_negative_snr-3.mp4: score=0.441  20 tracklets  [OK]  verdict_color=darkgreen
+  -> 12_mixed_uav_snr+3.mp4: score=0.869  20 tracklets  [HIT]  verdict_color=darkgreen
+  -> 13_mixed_uav_snr-3.mp4: score=0.674  20 tracklets  [HIT]  verdict_color=darkgreen
+
+[QA] checks
+------------------------------------------------------------
+  [OK  ] train_has_tubes: 9640 tubes
+  [OK  ] train_has_positives: 4640 positive tubes
+  [OK  ] val_has_tubes: 3000 tubes
+  [OK  ] val_has_positives: 172 positive tubes
+  [OK  ] train_loss_decreased: 0.6947 -> 0.3477
+  [FAIL] deployed_val_auc_above_0_7: deployed val_roc_auc=0.669  (best-seen during training=0.998)
+  [FAIL] val_auc_improved_by_0_10: 0.996 -> 0.669
+  [OK  ] mean_pos_score_above_mean_neg: mean(pos)=0.329, mean(neg)=0.293
+  [OK  ] loc_err_below_3px_on_top_positives: n=5, mean_loc_err=1.34 px
+  [OK  ] snr_sweep_pd_increases: low=0.00, high=1.00
+[QA] 8/10 checks passed
+
+Outputs in: /Users/roeygraif/Documents/GitHub/droneDetectionNew/demo_outputs
+  .DS_Store
+  example_tubes.png
+  history.json
+  learning_curve.png
+  model_checkpoint.pt
+  qa_report.json
+  run_train.log
+  score_distribution.png
+  snr_sweep.json
+  snr_sweep.png
+  videos
