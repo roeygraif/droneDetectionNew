@@ -1,0 +1,67 @@
+=== SpikingTrackletUNet V2 training ===
+  V2 diffs: base_channels 16->24, bottleneck 32->48, readout_mode spike_rate->membrane
+device=cpu
+Generating curriculum datasets...
+  stage1: train=1600 tubes (354 pos) val=500 tubes (109 pos)
+  stage2: train=4000 tubes (481 pos) val=1000 tubes (112 pos)
+  stage3: train=9640 tubes (4640 pos) val=3000 tubes (172 pos)
+  built in 403.1s
+SNN V2 model: 142,588 trainable parameters
+
+=== Stage 1 (warmup, (2.0, 10.0)) ===
+[warmup  ] Epoch  0 | train_loss=0.8948  val_loss=0.3917  val_roc_auc=0.953  val_pr_auc=0.906
+             ^ new best val_roc_auc=0.953
+[warmup  ] Epoch  1 | train_loss=0.5197  val_loss=0.3257  val_roc_auc=0.959  val_pr_auc=0.919
+             ^ new best val_roc_auc=0.959
+[warmup  ] Epoch  2 | train_loss=0.3090  val_loss=0.1625  val_roc_auc=0.966  val_pr_auc=0.931
+             ^ new best val_roc_auc=0.966
+[warmup  ] Epoch  3 | train_loss=0.2442  val_loss=0.1475  val_roc_auc=0.978  val_pr_auc=0.954
+             ^ new best val_roc_auc=0.978
+[warmup  ] Epoch  4 | train_loss=0.2323  val_loss=0.1514  val_roc_auc=0.982  val_pr_auc=0.960
+             ^ new best val_roc_auc=0.982
+[warmup  ] Epoch  5 | train_loss=0.2339  val_loss=0.1227  val_roc_auc=0.989  val_pr_auc=0.975
+             ^ new best val_roc_auc=0.989
+[warmup  ] Restored best-val checkpoint (val_roc_auc=0.989)
+
+=== Stage 2 (transition, (-5.0, 2.0)) ===
+[transit ] Epoch  6 | train_loss=0.3389  val_loss=0.2274  val_roc_auc=0.892  val_pr_auc=0.687
+             ^ new best val_roc_auc=0.892
+[transit ] Epoch  7 | train_loss=0.3092  val_loss=0.2013  val_roc_auc=0.906  val_pr_auc=0.700
+             ^ new best val_roc_auc=0.906
+[transit ] Epoch  8 | train_loss=0.2916  val_loss=0.1872  val_roc_auc=0.907  val_pr_auc=0.705
+             ^ new best val_roc_auc=0.907
+[transit ] Epoch  9 | train_loss=0.2927  val_loss=0.2294  val_roc_auc=0.904  val_pr_auc=0.674
+[transit ] Epoch 10 | train_loss=0.3110  val_loss=0.2015  val_roc_auc=0.901  val_pr_auc=0.694
+[transit ] Restored best-val checkpoint (val_roc_auc=0.907)
+
+=== Stage 3 (finetune, (-15.0, -3.0)) ===
+  stage3 train pool with rehearsal: 11240 tubes (4878 pos)
+[finetune] Epoch 11 | train_loss=0.3703  val_loss=0.1723  val_roc_auc=0.602  val_pr_auc=0.089
+             ^ new best val_roc_auc=0.602
+[finetune] Epoch 12 | train_loss=0.3828  val_loss=0.2158  val_roc_auc=0.643  val_pr_auc=0.111
+             ^ new best val_roc_auc=0.643
+[finetune] Epoch 13 | train_loss=0.3620  val_loss=0.2364  val_roc_auc=0.650  val_pr_auc=0.114
+             ^ new best val_roc_auc=0.650
+[finetune] Epoch 14 | train_loss=0.3680  val_loss=0.1826  val_roc_auc=0.639  val_pr_auc=0.111
+[finetune] Epoch 15 | train_loss=0.3750  val_loss=0.1981  val_roc_auc=0.655  val_pr_auc=0.119
+             ^ new best val_roc_auc=0.655
+[finetune] Epoch 16 | train_loss=0.3835  val_loss=0.2115  val_roc_auc=0.641  val_pr_auc=0.108
+[finetune] Epoch 17 | train_loss=0.3719  val_loss=0.2051  val_roc_auc=0.637  val_pr_auc=0.110
+[finetune] Epoch 18 | train_loss=0.3643  val_loss=0.1757  val_roc_auc=0.643  val_pr_auc=0.109
+[finetune] Epoch 19 | train_loss=0.3706  val_loss=0.1908  val_roc_auc=0.635  val_pr_auc=0.117
+[finetune] Epoch 20 | train_loss=0.3717  val_loss=0.1870  val_roc_auc=0.615  val_pr_auc=0.113
+[finetune] Restored best-val checkpoint (val_roc_auc=0.655)
+
+Checkpoint saved to /Users/roeygraif/Documents/GitHub/droneDetectionNew/spikeNN/results/snn_v2_checkpoint.pt
+Per-stage best val ROC-AUC: stage1=0.989  stage2=0.907  stage3=0.655
+
+=== SNR sweep on SNN V2 (8 cells, 20 runs/cell) ===
+SNR sweep saved to /Users/roeygraif/Documents/GitHub/droneDetectionNew/spikeNN/results/snn_v2_snr_sweep.json
+  SNR=-20.0 dB | Pd@FAR=1/100 = 0.10  (pos_mean=0.355  neg_mean=0.359)
+  SNR=-15.0 dB | Pd@FAR=1/100 = 0.00  (pos_mean=0.372  neg_mean=0.378)
+  SNR=-12.0 dB | Pd@FAR=1/100 = 0.05  (pos_mean=0.376  neg_mean=0.373)
+  SNR= -9.0 dB | Pd@FAR=1/100 = 0.00  (pos_mean=0.347  neg_mean=0.373)
+  SNR= -6.0 dB | Pd@FAR=1/100 = 0.05  (pos_mean=0.361  neg_mean=0.352)
+  SNR= -3.0 dB | Pd@FAR=1/100 = 0.55  (pos_mean=0.523  neg_mean=0.366)
+  SNR= +0.0 dB | Pd@FAR=1/100 = 1.00  (pos_mean=0.734  neg_mean=0.350)
+  SNR= +3.0 dB | Pd@FAR=1/100 = 1.00  (pos_mean=0.895  neg_mean=0.341)

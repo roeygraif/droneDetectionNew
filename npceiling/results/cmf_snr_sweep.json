@@ -1,0 +1,58 @@
+[
+  {
+    "snr_db": -20.0,
+    "pd_at_far_1_per_100": 0.09,
+    "threshold": 24.995748494664056,
+    "mean_pos_score": 10.317099541142715,
+    "mean_neg_score": 0.8723173647743103
+  },
+  {
+    "snr_db": -15.0,
+    "pd_at_far_1_per_100": 0.46,
+    "threshold": 24.48311075140714,
+    "mean_pos_score": 22.779586012285513,
+    "mean_neg_score": -0.02504827067366555
+  },
+  {
+    "snr_db": -12.0,
+    "pd_at_far_1_per_100": 0.62,
+    "threshold": 25.45333007394917,
+    "mean_pos_score": 29.077786869442175,
+    "mean_neg_score": 0.39256314659665625
+  },
+  {
+    "snr_db": -9.0,
+    "pd_at_far_1_per_100": 0.96,
+    "threshold": 20.292117789252178,
+    "mean_pos_score": 43.4780186941636,
+    "mean_neg_score": -2.373793311113819
+  },
+  {
+    "snr_db": -6.0,
+    "pd_at_far_1_per_100": 1.0,
+    "threshold": 20.800926265032192,
+    "mean_pos_score": 60.1426139302436,
+    "mean_neg_score": -1.6503882472640967
+  },
+  {
+    "snr_db": -3.0,
+    "pd_at_far_1_per_100": 1.0,
+    "threshold": 23.55554960333314,
+    "mean_pos_score": 84.50918029297591,
+    "mean_neg_score": -0.7289049372954512
+  },
+  {
+    "snr_db": 0.0,
+    "pd_at_far_1_per_100": 1.0,
+    "threshold": 27.14370641879009,
+    "mean_pos_score": 118.41806193621032,
+    "mean_neg_score": -0.004674444443413535
+  },
+  {
+    "snr_db": 3.0,
+    "pd_at_far_1_per_100": 1.0,
+    "threshold": 22.172609621254995,
+    "mean_pos_score": 167.95712316485123,
+    "mean_neg_score": -0.11146930759906827
+  }
+]

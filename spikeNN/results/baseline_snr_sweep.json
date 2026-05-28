@@ -1,0 +1,58 @@
+[
+  {
+    "snr_db": -20.0,
+    "pd_at_far_1_per_100": 0.0,
+    "threshold": 0.5,
+    "mean_pos_score": 0.4,
+    "mean_neg_score": 0.4
+  },
+  {
+    "snr_db": -15.0,
+    "pd_at_far_1_per_100": 0.0,
+    "threshold": 0.5,
+    "mean_pos_score": 0.4,
+    "mean_neg_score": 0.4
+  },
+  {
+    "snr_db": -12.0,
+    "pd_at_far_1_per_100": 0.0,
+    "threshold": 0.5,
+    "mean_pos_score": 0.4,
+    "mean_neg_score": 0.4
+  },
+  {
+    "snr_db": -9.0,
+    "pd_at_far_1_per_100": 0.0,
+    "threshold": 0.5,
+    "mean_pos_score": 0.41,
+    "mean_neg_score": 0.41
+  },
+  {
+    "snr_db": -6.0,
+    "pd_at_far_1_per_100": 0.25,
+    "threshold": 0.5,
+    "mean_pos_score": 0.5,
+    "mean_neg_score": 0.4
+  },
+  {
+    "snr_db": -3.0,
+    "pd_at_far_1_per_100": 0.65,
+    "threshold": 0.5,
+    "mean_pos_score": 0.6,
+    "mean_neg_score": 0.4
+  },
+  {
+    "snr_db": 0.0,
+    "pd_at_far_1_per_100": 1.0,
+    "threshold": 0.5,
+    "mean_pos_score": 0.77,
+    "mean_neg_score": 0.4
+  },
+  {
+    "snr_db": 3.0,
+    "pd_at_far_1_per_100": 1.0,
+    "threshold": 0.5,
+    "mean_pos_score": 0.86,
+    "mean_neg_score": 0.4
+  }
+]

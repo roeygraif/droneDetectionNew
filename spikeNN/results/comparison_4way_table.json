@@ -1,0 +1,74 @@
+[
+  {
+    "snr_db": -20.0,
+    "baseline_pd": 0.0,
+    "v1_pd": 0.0,
+    "v2_pd": 0.1,
+    "v3_pd": 0.1,
+    "delta_v3_baseline": 0.1,
+    "delta_v3_v2": 0.0
+  },
+  {
+    "snr_db": -15.0,
+    "baseline_pd": 0.0,
+    "v1_pd": 0.0,
+    "v2_pd": 0.0,
+    "v3_pd": 0.0,
+    "delta_v3_baseline": 0.0,
+    "delta_v3_v2": 0.0
+  },
+  {
+    "snr_db": -12.0,
+    "baseline_pd": 0.0,
+    "v1_pd": 0.0,
+    "v2_pd": 0.05,
+    "v3_pd": 0.0,
+    "delta_v3_baseline": 0.0,
+    "delta_v3_v2": -0.05
+  },
+  {
+    "snr_db": -9.0,
+    "baseline_pd": 0.0,
+    "v1_pd": 0.05,
+    "v2_pd": 0.0,
+    "v3_pd": 0.05,
+    "delta_v3_baseline": 0.05,
+    "delta_v3_v2": 0.05
+  },
+  {
+    "snr_db": -6.0,
+    "baseline_pd": 0.25,
+    "v1_pd": 0.0,
+    "v2_pd": 0.05,
+    "v3_pd": 0.15,
+    "delta_v3_baseline": -0.1,
+    "delta_v3_v2": 0.09999999999999999
+  },
+  {
+    "snr_db": -3.0,
+    "baseline_pd": 0.65,
+    "v1_pd": 0.3,
+    "v2_pd": 0.55,
+    "v3_pd": 0.45,
+    "delta_v3_baseline": -0.2,
+    "delta_v3_v2": -0.10000000000000003
+  },
+  {
+    "snr_db": 0.0,
+    "baseline_pd": 1.0,
+    "v1_pd": 0.95,
+    "v2_pd": 1.0,
+    "v3_pd": 1.0,
+    "delta_v3_baseline": 0.0,
+    "delta_v3_v2": 0.0
+  },
+  {
+    "snr_db": 3.0,
+    "baseline_pd": 1.0,
+    "v1_pd": 1.0,
+    "v2_pd": 1.0,
+    "v3_pd": 1.0,
+    "delta_v3_baseline": 0.0,
+    "delta_v3_v2": 0.0
+  }
+]

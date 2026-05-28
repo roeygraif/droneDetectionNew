@@ -1,0 +1,98 @@
+[
+  {
+    "snr_db": -20.0,
+    "cmf_pd": 0.09,
+    "glrt_pd": 0.01,
+    "baseline_pd": 0.0,
+    "v1_pd": 0.0,
+    "v2_pd": 0.1,
+    "v3_pd": 0.1,
+    "gap_baseline_to_cmf": 0.09,
+    "gap_v2_to_cmf": -0.010000000000000009,
+    "glrt_minus_baseline": 0.01
+  },
+  {
+    "snr_db": -15.0,
+    "cmf_pd": 0.46,
+    "glrt_pd": 0.06,
+    "baseline_pd": 0.0,
+    "v1_pd": 0.0,
+    "v2_pd": 0.0,
+    "v3_pd": 0.0,
+    "gap_baseline_to_cmf": 0.46,
+    "gap_v2_to_cmf": 0.46,
+    "glrt_minus_baseline": 0.06
+  },
+  {
+    "snr_db": -12.0,
+    "cmf_pd": 0.62,
+    "glrt_pd": 0.0,
+    "baseline_pd": 0.0,
+    "v1_pd": 0.0,
+    "v2_pd": 0.05,
+    "v3_pd": 0.0,
+    "gap_baseline_to_cmf": 0.62,
+    "gap_v2_to_cmf": 0.57,
+    "glrt_minus_baseline": 0.0
+  },
+  {
+    "snr_db": -9.0,
+    "cmf_pd": 0.96,
+    "glrt_pd": 0.01,
+    "baseline_pd": 0.0,
+    "v1_pd": 0.05,
+    "v2_pd": 0.0,
+    "v3_pd": 0.05,
+    "gap_baseline_to_cmf": 0.96,
+    "gap_v2_to_cmf": 0.96,
+    "glrt_minus_baseline": 0.01
+  },
+  {
+    "snr_db": -6.0,
+    "cmf_pd": 1.0,
+    "glrt_pd": 0.38,
+    "baseline_pd": 0.25,
+    "v1_pd": 0.0,
+    "v2_pd": 0.05,
+    "v3_pd": 0.15,
+    "gap_baseline_to_cmf": 0.75,
+    "gap_v2_to_cmf": 0.95,
+    "glrt_minus_baseline": 0.13
+  },
+  {
+    "snr_db": -3.0,
+    "cmf_pd": 1.0,
+    "glrt_pd": 0.87,
+    "baseline_pd": 0.65,
+    "v1_pd": 0.3,
+    "v2_pd": 0.55,
+    "v3_pd": 0.45,
+    "gap_baseline_to_cmf": 0.35,
+    "gap_v2_to_cmf": 0.44999999999999996,
+    "glrt_minus_baseline": 0.21999999999999997
+  },
+  {
+    "snr_db": 0.0,
+    "cmf_pd": 1.0,
+    "glrt_pd": 0.99,
+    "baseline_pd": 1.0,
+    "v1_pd": 0.95,
+    "v2_pd": 1.0,
+    "v3_pd": 1.0,
+    "gap_baseline_to_cmf": 0.0,
+    "gap_v2_to_cmf": 0.0,
+    "glrt_minus_baseline": -0.010000000000000009
+  },
+  {
+    "snr_db": 3.0,
+    "cmf_pd": 1.0,
+    "glrt_pd": 1.0,
+    "baseline_pd": 1.0,
+    "v1_pd": 1.0,
+    "v2_pd": 1.0,
+    "v3_pd": 1.0,
+    "gap_baseline_to_cmf": 0.0,
+    "gap_v2_to_cmf": 0.0,
+    "glrt_minus_baseline": 0.0
+  }
+]
