@@ -1,0 +1,339 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage[hidelinks]{hyperref}
+
+\title{Where Does the Signal Die?\\
+\large Localizing and Repairing the Temporal-Integration Bottleneck in
+Deep Low-SNR Drone Detection}
+\author{Roey Graif}
+\date{May 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent
+Deep networks detect drones reliably at moderate signal levels, but their
+accuracy falls quickly when the target is faint, as it is for a small drone seen
+from a distance by a thermal infrared camera. When such a detector fails, one
+usually cannot tell whether the target was too weak for any method to find, or
+whether the network had the evidence and threw it away. We separate these two
+cases using synthetic data, for which the optimal Neyman--Pearson detector can be
+computed exactly and used as a reference. We measure detectability at each stage
+inside the network and compare it with this optimum. The stage where
+detectability drops is the one we redesign, and we then test whether the lost
+performance returns. The same setup shows how far integration over many frames
+keeps helping, and what stops it: in a real thermal sensor a fixed noise pattern
+that does not average out across frames sets a limit that depends on how fast the
+target moves. Using the optimal detector as a reference is an idea borrowed from
+medical imaging; applying it inside a deep detector, to find and repair where a
+faint moving target is lost, appears to be new.
+\end{abstract}
+
+\section{Introduction}
+
+Detecting small drones at long range increasingly relies on thermal infrared
+cameras. At long range a drone covers only a few pixels and is often dimmer than
+the background noise, the regime known as low signal-to-noise ratio (SNR).
+Multi-frame deep networks, which combine evidence across a sequence of frames,
+are the standard tool for this task, yet their probability of detection drops
+sharply as the SNR falls.
+
+When a deep detector misses a faint drone, there are two very different reasons
+it might have failed. The target may carry too little information to be recovered
+by any method, in which case the data sets the limit. Alternatively, the
+information may be present in the frames while the network discards it somewhere
+between its input and its decision, in which case the architecture sets the limit
+and can be improved. On real footage these two cases cannot be told apart,
+because separating them needs the optimal detector, and the optimal detector
+cannot be computed when the signal and noise are not known exactly.
+
+This proposal removes that obstacle by working in a synthetic infrared testbed
+where the signal and the noise are known by construction. For a known signal in
+Gaussian noise, the optimal detector in the Neyman--Pearson sense is the matched
+filter, which becomes a whitening matched filter when the noise is correlated;
+in both cases it can be computed \cite{kay,marcum}. It gives an exact upper bound
+on detectability, against which a learned detector and each of its internal
+representations can be measured. This use of the optimal detector as a reference
+is standard in medical imaging, where the ``ideal observer'' tells whether image
+processing has preserved a faint signal \cite{barrett}. Here the same idea is
+applied one level deeper, inside the network.
+
+\paragraph{Aim and research questions.} The thesis asks where, and why, a deep
+low-SNR drone detector falls short of the optimum, and whether the shortfall can
+be repaired:
+\begin{enumerate}
+\item[Q1.] Is there a stage in the network where detectability collapses relative
+to the optimum, and if so, where is it?
+\item[Q2.] Does redesigning that stage recover detectability toward the optimum,
+by an amount consistent with theory?
+\item[Q3.] How far does adding frames keep improving detection before
+fixed-pattern sensor noise caps the gain, and how does this depend on SNR,
+sequence length, and target speed?
+\end{enumerate}
+
+\paragraph{Contributions.} The planned contributions are:
+\begin{enumerate}
+\item[C1.] a method that plots detectability against network depth, with the
+optimal detector as the ceiling;
+\item[C2.] a map of where low-SNR signal is lost inside a deep
+track-before-detect detector, as a function of SNR, sequence length, and motion;
+\item[C3.] a redesign of the stage responsible for the loss, with a test of how
+much detectability it recovers;
+\item[C4.] a description of the limit that temporal integration reaches once
+fixed-pattern noise is present.
+\end{enumerate}
+
+\section{Problem Formulation and Background}
+
+\paragraph{Observation model.} Let $y_t \in \mathbb{R}^{H\times W}$ be frame $t$
+of a sequence of $T$ frames. Under the target-present ($H_1$) and target-absent
+($H_0$) hypotheses,
+\begin{equation}
+H_1:\; y_t = a_t\, g(\mathbf{p}_t;\sigma_{\mathrm{PSF}}) + n_t,
+\qquad
+H_0:\; y_t = n_t,
+\qquad t = 1,\dots,T,
+\label{eq:model}
+\end{equation}
+where $g(\cdot;\sigma_{\mathrm{PSF}})$ is a unit-peak Gaussian point-spread
+function centered at the sub-pixel position $\mathbf{p}_t$ on the target
+trajectory, $a_t$ is the per-frame amplitude, and $n_t$ is the sensor noise. We
+measure target strength by the peak SNR,
+$\mathrm{SNR}_{\mathrm{dB}} = 20\log_{10}(A/\sigma)$, with $A$ the peak target
+amplitude and $\sigma$ the noise standard deviation.
+
+\paragraph{The matched filter and the $\sqrt{T}$ rule.} Collect the frames and
+the known signal template along the trajectory into vectors $y$ and $s$. For
+white Gaussian noise $n\sim\mathcal{N}(0,\sigma^2 I)$ the optimal test is the
+matched filter $\Lambda(y) = s^\top y$ \cite{kay}. Its deflection coefficient,
+the squared separation between the two hypotheses divided by the variance, is
+\begin{equation}
+d^2 \;=\; \frac{\lVert s\rVert^2}{\sigma^2}
+\;=\; \frac{1}{\sigma^2}\sum_{t=1}^{T} a_t^2\,\lVert g_t\rVert^2 .
+\label{eq:deflection}
+\end{equation}
+For a target of constant amplitude this reduces to
+$d^2 = T\,(A^2/\sigma^2)\,\lVert g\rVert^2$, so $d$ grows like $\sqrt{T}$: each
+doubling of the number of frames moves the detection curve about $3$~dB toward
+lower SNR. This is the familiar gain from integrating pulses over time
+\cite{richards}, and the detection probability at a fixed false-alarm rate (FAR)
+follows the Gaussian relation
+\begin{equation}
+P_d \;=\; Q\!\left(Q^{-1}(P_{\mathrm{FA}}) - d\right),
+\label{eq:roc}
+\end{equation}
+where $Q$ is the standard normal tail. How far this gain extends is the central
+theme of the thesis.
+
+\paragraph{Correlated noise in a real sensor.} Real thermal cameras do not have
+white noise. The standard three-dimensional (3-D) noise model \cite{dagostino}
+separates sensor noise into parts that change from frame to frame and a fixed
+pattern, the residual left after non-uniformity correction, that is the same in
+every frame. The changing part averages out as $1/\sqrt{T}$; the fixed pattern
+does not. When the noise is correlated, $n\sim\mathcal{N}(0,\Sigma)$, the optimal
+detector becomes the whitening matched filter \cite{kay},
+\begin{equation}
+\Lambda(y) = s^\top \Sigma^{-1} y,
+\qquad
+d^2 = s^\top \Sigma^{-1} s,
+\label{eq:whitening}
+\end{equation}
+which can still be computed when $\Sigma$ is known. Writing
+$\Sigma = \sigma^2 I + C_{\mathrm{fix}}$, with $C_{\mathrm{fix}}$ the part that
+repeats in every frame, leads to the claim the thesis sets out to prove:
+
+\begin{quote}
+For a slow or stationary target the signal lands on the same pixels in every
+frame, where the fixed pattern also repeats, so the matching term in
+\eqref{eq:whitening} does not vanish as $T$ grows and $d^2(T)$ stops increasing
+at a finite floor. For a fast target the footprint moves to fresh pixels each
+frame, the repeated part matters less, and the $\sqrt{T}$ growth lasts longer.
+\end{quote}
+
+\noindent Fixed-pattern noise therefore sets a limit on temporal integration
+that depends on how fast the target moves. This is the limit Q3 asks us to map.
+
+\section{Related Work}
+
+Using the optimal detector to judge whether processing has kept a faint signal is
+well established in medical imaging, where the ideal, or model, observer measures
+task-based image quality \cite{barrett}. In other fields, deep networks are
+compared with the matched filter at the output: gravitational-wave astronomy
+\cite{gabbard}, radio-frequency signal detection with unknown parameters
+\cite{anders}, and, recently, in-context hypothesis testing in transformers,
+which links a network's internal representation to the likelihood-ratio statistic
+\cite{chaudhry}. These studies either treat the network as a closed box, reading
+only its output, or work in settings other than faint moving-target video.
+
+A separate line of work looks inside networks. Linear classifier probes
+\cite{alain} and information-plane analysis \cite{tishbyblackbox,ib} measure how
+much task-relevant information each layer keeps. They do this for general tasks
+and without an optimal-detector reference, so they cannot say how far a layer
+sits from the best result physically possible.
+
+On the temporal side, recent theory gives the longest span over which a recurrent
+network can learn long-range structure \cite{livi}, a learning-based counterpart
+to the classical $\sqrt{T}$ bound. Deep learning for infrared small-target
+detection is itself a large and active area \cite{cheng}, but it competes on
+accuracy and uses no optimal-detector reference.
+
+What is missing is the combination of these pieces: the computable optimum used
+inside the network, layer by layer, to find and repair where a faint signal is
+lost, for moving-target infrared video, and tied to the temporal-integration
+limit. The tool is borrowed from the ideal-observer tradition, but using it in
+this way, and for this problem, appears to be new.
+
+\section{Proposed Research}
+
+\subsection{A testbed with a computable optimum}
+We use a controllable synthetic infrared generator that implements the model in
+\eqref{eq:model}: a Gaussian point target on a chosen trajectory, the 3-D
+sensor-noise model \cite{dagostino} with its random and fixed-pattern parts, and
+a multiplicative, time-correlated term for the target's brightness fluctuation.
+Because the signal and the noise are known, the matched filter
+\eqref{eq:deflection} and its whitening version \eqref{eq:whitening} give a
+computable optimum $D^\star$ on the raw frames. The added realism is kept Gaussian
+and of known covariance, so that this optimum stays exact (Section~\ref{sec:scope}).
+
+\subsection{Finding where detectability is lost}
+Write the detector as a composition $F = f_L\circ\cdots\circ f_1$, with
+intermediate features $Z_k = (f_k\circ\cdots\circ f_1)(y)$. The label, the data,
+and the representations form a Markov chain
+$H \to y \to Z_1 \to \cdots \to Z_L \to \hat{H}$. Let $D_k$ be the best detection
+performance, measured by deflection or by $P_d$ at a fixed FAR, that can be
+obtained from $Z_k$ alone. The data-processing inequality then gives
+\begin{equation}
+I(Z_k;H) \le I(Z_{k-1};H) \;\Rightarrow\; D_k \le D_{k-1} \le \cdots \le D^\star,
+\label{eq:dpi}
+\end{equation}
+so detectability can only stay level or fall as we move deeper, starting from the
+optimum $D^\star$. Define the gap $G_k = D^\star - D_k$, the drop at stage $k$,
+$\Delta D_k = D_{k-1} - D_k$, and the bottleneck stage
+$k^\star = \arg\max_k \Delta D_k$, the one that loses the most. Each $D_k$ is
+estimated with a fixed linear probe on the frozen features \cite{alain}. Since a
+fixed probe can only read out part of what is present, this gives a lower bound,
+and the size of the drop between stages is what we rely on. A plot of $D_k$
+against depth, with $D^\star$ on top, is contribution C1, and the location of the
+drop is C2, which we will trace as a function of SNR, sequence length, and motion.
+
+\subsection{Repairing the bottleneck}
+Once $k^\star$ is found, we replace $f_{k^\star}$ with a different
+feature-reduction designed to keep the signal, leave the rest of the network
+unchanged, and measure $D_k$ again. The repair has worked if the gap
+$G_{k^\star}$ shrinks and detectability rises toward $D_{k^\star-1}$, and at the
+output toward $D^\star$. The inequality in \eqref{eq:dpi} caps the possible gain:
+no change to one stage can beat the optimum, so the claim can be tested directly
+rather than only asserted. This is the precise and testable form of an earlier
+idea, that a different way of collapsing the image might bring a lost target
+back, now applied only at the stage where the loss is shown to occur.
+
+\subsection{The temporal-integration limit}
+Using \eqref{eq:whitening} and the claim in Section~2, we will trace $d^2(T)$ and
+$P_d(T)$ for both the optimum and the learned detector, across SNR and target
+speed, separating the white-noise $\sqrt{T}$ region from the fixed-pattern floor.
+The network's limit is then placed against the learning-based horizon of
+\cite{livi}: the classical bound says how much information $T$ frames hold, while
+the learnable horizon says how much a trained recurrent network can actually use.
+Comparing the two against the computable optimum is the synthesis the thesis aims
+for.
+
+\paragraph{Hypothesis.} We expect that at very low SNR the limiting stage is the
+early spatial down-sampling, where a target only a few pixels wide is erased
+before the network integrates over time, and that for longer sequences the
+temporal stage becomes limiting instead. We also expect the fixed-pattern floor
+to hurt slow targets most. Each part can be checked by the measurements above.
+
+\section{Research Plan}
+
+The work runs in stages, each depending on the one before it.
+\begin{enumerate}
+\item Extend the computable optimum from the white-noise matched filter to the
+whitening matched filter \eqref{eq:whitening} for the 3-D-noise testbed.
+\item Train a multi-frame detector (a per-frame U-Net encoder with a recurrent
+temporal stage and detection heads) on the testbed, and record its detection
+curve against $D^\star$.
+\item Produce the detectability-against-depth plot at a low SNR where the optimum
+still succeeds. A clear drop confirms an architecture-limited case and leads to
+the repair step. A drop already at the input means the case is
+information-limited, which is itself a useful result and tells us to shift the
+SNR or sequence-length range.
+\item Redesign the bottleneck stage and measure how much detectability returns,
+bounded by \eqref{eq:dpi}.
+\item Sweep the limit over SNR, sequence length, and motion, and relate it to the
+learnable horizon.
+\item Write up the results.
+\end{enumerate}
+The deliverables are the four contributions C1 to C4. Progress will be judged by
+three figures: the detector against the optimum; the
+detectability-against-depth plot showing the drop; and the before-and-after
+comparison of the repair, together with the map of the temporal-integration limit.
+
+\section{Scope and Limitations}
+\label{sec:scope}
+This is, by design, a study of performance limits on synthetic data. That choice
+is what makes the optimum computable and the whole diagnosis possible, and it is
+the main advantage over work on real footage. The price is a gap between the
+synthetic data and reality. The noise parameters are set from physics rather than
+fitted to a particular camera, since we do not assume access to real low-SNR
+drone footage, and the added realism is kept Gaussian with known covariance so
+that the optimum stays exact. Non-Gaussian clutter, sensor artifacts, and fitting
+the noise model to real recordings are left for future work. Architectural
+experiments that do not serve the main questions are also set aside.
+
+\begin{thebibliography}{99}
+
+\bibitem{marcum} J.~I.~Marcum, \emph{A Statistical Theory of Target Detection by
+Pulsed Radar}, RAND Corporation Research Memoranda RM-753/RM-754, 1947--1948.
+
+\bibitem{kay} S.~M.~Kay, \emph{Fundamentals of Statistical Signal Processing,
+Vol.~II: Detection Theory}. Prentice-Hall, 1998.
+
+\bibitem{dagostino} J.~A.~D'Agostino and C.~M.~Webb, ``Three-dimensional analysis
+framework and measurement methodology for imaging system noise,'' \emph{Proc.
+SPIE} 1488, \emph{Infrared Imaging Systems}, pp.~110--121, 1991.
+doi:10.1117/12.45794.
+
+\bibitem{barrett} H.~H.~Barrett, J.~Yao, J.~P.~Rolland, and K.~J.~Myers, ``Model
+observers for assessment of image quality,'' \emph{Proc. Natl. Acad. Sci. USA},
+vol.~90, no.~21, pp.~9758--9765, 1993. (See also H.~H.~Barrett and K.~J.~Myers,
+\emph{Foundations of Image Science}, Wiley, 2004.)
+
+\bibitem{gabbard} H.~Gabbard, M.~Williams, F.~Hayes, and C.~Messenger, ``Matching
+matched filtering with deep networks for gravitational-wave astronomy,''
+\emph{Phys. Rev. Lett.}, vol.~120, art.~141103, 2018. arXiv:1712.06041.
+
+\bibitem{alain} G.~Alain and Y.~Bengio, ``Understanding intermediate layers using
+linear classifier probes,'' arXiv:1610.01644, 2016.
+
+\bibitem{tishbyblackbox} R.~Shwartz-Ziv and N.~Tishby, ``Opening the black box of
+deep neural networks via information,'' arXiv:1703.00810, 2017.
+
+\bibitem{ib} N.~Tishby, F.~C.~Pereira, and W.~Bialek, ``The information bottleneck
+method,'' arXiv:physics/0004057, 1999.
+
+\bibitem{livi} L.~Livi, ``Learnability window in gated recurrent neural
+networks,'' arXiv:2512.05790, 2025.
+
+\bibitem{anders} T.~Anders, H.~P.~Kothari, and R.~M.~Buehrer, ``On the ability of
+deep learning to detect signals with unknown parameters,'' arXiv:2512.13542,
+2025.
+
+\bibitem{chaudhry} F.~Chaudhry and S.~Gadkari, ``Implicit statistical inference in
+transformers: approximating likelihood-ratio tests in-context,''
+arXiv:2603.10573, 2026.
+
+\bibitem{cheng} Y.~Cheng, X.~Lai, Y.~Xia, and J.~Zhou, ``Infrared dim small target
+detection networks: a review,'' \emph{Sensors}, vol.~24, no.~12, art.~3885, 2024.
+
+\bibitem{richards} M.~A.~Richards, \emph{Fundamentals of Radar Signal
+Processing}, 2nd ed. McGraw-Hill, 2014.
+
+\end{thebibliography}
+
+\end{document}

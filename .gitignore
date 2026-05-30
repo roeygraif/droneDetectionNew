@@ -24,3 +24,8 @@ mlruns/
 .DS_Store
 .idea/
 .vscode/
+
+# collapseprobe — generated synthetic data (regenerate with `python -m collapseprobe.dataset`)
+collapseprobe/data/
+# collapseprobe — transient training run log (key numbers live in EXPERIMENTS.md)
+collapseprobe/train_detector.log
