@@ -3,14 +3,15 @@
 Exp 06b localized the detectability loss to the first encoder downsample. The
 detection-theory reason max-pooling hurts at low SNR: it keeps the (upward-biased)
 maximum of a mostly-noise patch, raising the noise floor, whereas the optimal
-detector integrates. So we retrained an identical detector with average-pooling
-(`--pool avg`) instead of max-pooling — everything else (data, seed, reg) held
-fixed — and here we measure how much of the detector-vs-optimum gap it recovers.
+detector integrates. So we retrain identical detectors with average-pooling
+(`--pool avg`) instead of max-pooling and measure how much of the
+detector-vs-optimum gap it recovers.
 
-This is the before/after of signature figure #3.
+Multi-seed: aggregates every available checkpoint per condition (mean ± std over
+seeds), so the before/after isn't a single noisy run. This is signature figure #3.
 
 Run:  python -m collapseprobe.exp07_repair
-Out:  console table + collapseprobe/fig_repair.png
+Out:  console table (mean±std, n seeds) + collapseprobe/fig_repair.png
 """
 from __future__ import annotations
 
@@ -33,10 +34,15 @@ from collapseprobe.dataset import DATA_DIR, _split_path, load_split  # noqa: E40
 from collapseprobe.net_probe import load_detector  # noqa: E402
 from collapseprobe.probing import detectability  # noqa: E402
 
+CP = ROOT / "collapseprobe"
 SNRS = (-3.0, -6.0, -9.0, -12.0, -15.0)
-MODELS = [("max-pool (baseline)", "detector_ckpt_v2.pt"),
-          ("avg-pool (C3 repair)", "detector_ckpt_avgpool.pt")]
-FIG = ROOT / "collapseprobe" / "fig_repair.png"
+# Each condition aggregates whatever seed checkpoints exist (added by the
+# multi-seed firming run). Order: baseline first, repair second.
+CONDS = [
+    ("max-pool (baseline)", ["detector_ckpt_v2.pt", "detector_ckpt_max_1234.pt", "detector_ckpt_max_7777.pt"]),
+    ("avg-pool (C3 repair)", ["detector_ckpt_avgpool.pt", "detector_ckpt_avg_1234.pt", "detector_ckpt_avg_7777.pt"]),
+]
+FIG = CP / "fig_repair.png"
 
 
 def _device():
@@ -58,41 +64,54 @@ def main():
     device = _device()
     cells = {s: load_split(_split_path(DATA_DIR / "ir3d", s)) for s in SNRS}
 
-    # Optimum (same for all detectors — it's the data's ceiling).
     opt = {}
     for s in SNRS:
         c = cells[s]; y = c["labels"]; w = c["wmf_scores"]
         opt[s] = detectability(w[y == 1], w[y == 0])["auc"]
 
-    det_auc = {}
-    for name, ck in MODELS:
-        model, _ = load_detector(ROOT / "collapseprobe" / ck, device)
-        det_auc[name] = {}
-        for s in SNRS:
-            c = cells[s]; y = c["labels"]
-            lg = logits(model, c["tubes"], device)
-            det_auc[name][s] = detectability(lg[y == 1], lg[y == 0])["auc"]
+    # condition -> SNR -> list of per-seed AUCs
+    agg = {}
+    nseeds = {}
+    for name, files in CONDS:
+        present = [f for f in files if (CP / f).exists()]
+        nseeds[name] = len(present)
+        per = {s: [] for s in SNRS}
+        for f in present:
+            model, _ = load_detector(CP / f, device)
+            for s in SNRS:
+                c = cells[s]; y = c["labels"]
+                lg = logits(model, c["tubes"], device)
+                per[s].append(detectability(lg[y == 1], lg[y == 0])["auc"])
+        agg[name] = {s: np.array(per[s]) for s in SNRS}
 
-    names = [n for n, _ in MODELS]
-    print("=== Exp 07: C3 repair — detector output AUC vs. the optimum (IR3D eval cells) ===\n")
-    print(f"  {'SNR':>5}" + "".join(f"{n:>24}" for n in names) + f"{'optimum':>12}{'recovered':>11}")
-    print("  " + "-" * (5 + 24 * len(names) + 23))
+    names = [n for n, _ in CONDS]
+    print("=== Exp 07: C3 repair — detector AUC vs. optimum (IR3D eval), mean±std over seeds ===")
+    print(f"  seeds/condition: " + ", ".join(f"{n}={nseeds[n]}" for n in names) + "\n")
+    print(f"  {'SNR':>5}" + "".join(f"{n:>26}" for n in names) + f"{'optimum':>10}{'recovered':>11}")
+    print("  " + "-" * (5 + 26 * len(names) + 21))
     for s in SNRS:
-        base, rep = det_auc[names[0]][s], det_auc[names[1]][s]
-        # fraction of the remaining gap to the optimum that the repair closed
-        frac = (rep - base) / (opt[s] - base) if opt[s] - base > 1e-6 else float("nan")
-        print(f"  {s:>5.0f}" + f"{base:>24.3f}{rep:>24.3f}" + f"{opt[s]:>12.3f}{frac:>10.0%}")
+        b, r = agg[names[0]][s], agg[names[1]][s]
+        frac = (r.mean() - b.mean()) / (opt[s] - b.mean()) if opt[s] - b.mean() > 1e-6 else float("nan")
+        print(f"  {s:>5.0f}"
+              f"{b.mean():>14.3f}±{b.std():.3f}"
+              f"{r.mean():>14.3f}±{r.std():.3f}"
+              f"{opt[s]:>10.3f}{frac:>10.0%}")
 
-    plt.figure(figsize=(7.5, 5))
     xs = list(SNRS)
+    plt.figure(figsize=(7.5, 5))
     plt.plot(xs, [opt[s] for s in SNRS], "k--*", lw=1.5, ms=11, label="optimum (whitening MF)")
-    for name, _ in MODELS:
-        plt.plot(xs, [det_auc[name][s] for s in SNRS], marker="o", label=name)
-    plt.fill_between(xs, [det_auc[names[0]][s] for s in SNRS],
-                     [det_auc[names[1]][s] for s in SNRS], alpha=0.15, color="green",
-                     label="recovered by repair")
+    colors = {}
+    for name, _ in CONDS:
+        mean = np.array([agg[name][s].mean() for s in SNRS])
+        std = np.array([agg[name][s].std() for s in SNRS])
+        line = plt.plot(xs, mean, marker="o", label=f"{name} (n={nseeds[name]})")[0]
+        colors[name] = line.get_color()
+        plt.fill_between(xs, mean - std, mean + std, alpha=0.18, color=line.get_color())
+    mb = np.array([agg[names[0]][s].mean() for s in SNRS])
+    mr = np.array([agg[names[1]][s].mean() for s in SNRS])
+    plt.fill_between(xs, mb, mr, where=(mr >= mb), alpha=0.12, color="green", label="recovered by repair")
     plt.xlabel("per-frame SNR (dB)"); plt.ylabel("detection AUC")
-    plt.title("C3 repair: max-pool → avg-pool, vs. the optimum")
+    plt.title("C3 repair: max-pool → avg-pool, vs. the optimum (mean±std over seeds)")
     plt.legend(fontsize=9); plt.grid(alpha=0.3); plt.tight_layout()
     plt.savefig(FIG, dpi=130)
     print(f"\n  figure -> {FIG}")

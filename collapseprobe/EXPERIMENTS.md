@@ -78,13 +78,13 @@ computable matched-filter ceiling.
 - [x] ~~**C3 repair hypothesis (revised, from Exp 06b).**~~ **Prototyped, positive
   (Exp 07).** Swapped the encoder max-pools for **average-pooling** (same
   resolution reduction, but integrates instead of taking the noise-inflated max).
-  Recovers 40–61% of the detector-vs-optimum AUC gap at −3/−6/−9 dB, 18% at −15;
-  the targeted enc1→enc2 cliff roughly halved. One caveat: −12 dB regressed
-  (−24%), almost certainly single-run-per-condition noise (val pool showed −12
-  *improving*). → firm up with multi-seed before it's signature figure #3.
-- [ ] **C3 multi-seed firming.** Exp 07 is one training run per condition; the
-  −12 dB sign flip is within run-to-run noise. Train 2–3 seeds each of max/avg,
-  report mean±std of the recovered gap, before finalizing figure #3.
+  the targeted enc1→enc2 cliff roughly halved. **Firmed (Exp 07b, 3 seeds each):**
+  avg-pool beats max-pool at **every** SNR; gap recovered 66/70/44/19/27% over
+  −3..−15 dB; the single-run −12 dB regression was noise (now +19%). Signature
+  figure #3 = `fig_repair.png`.
+- [x] ~~**C3 multi-seed firming.**~~ **Done (Exp 07b).** 3 seeds/condition (varied
+  init + data); mean±std error bands; the repair effect is robust and the −12 dB
+  anomaly resolved.
 - [ ] **Detector overfits a little.** train_loss → 0.03 on 1600 tubes; best-val
   checkpointing rescues a good epoch but the val curve is noisy. Adequate for a
   *representative* frozen detector (charter: tuning out of scope); revisit with
@@ -556,3 +556,44 @@ figure #3 is final: **multi-seed firming** — 2–3 training seeds per conditio
 report mean±std of the recovered gap (smooths the −12 noise), exactly as Exp 06b
 firmed up Exp 06. After that, Q3/C4 (the temporal-integration limit vs the
 fixed-pattern floor) is the remaining contribution.
+
+---
+
+### Exp 07b — C3 repair firmed across seeds
+
+**Date:** 2026-05-31 · **Noise:** ir3d eval cells · **SNRs:** −3..−15 dB
+**Scripts:** `train_detector.py` (4 new runs), `exp07_repair.py` (now multi-seed)
+**Checkpoints:** max-pool {v2, max_1234, max_7777}, avg-pool {avgpool, avg_1234,
+avg_7777} — 3 seeds/condition, each varying init **and** train/val data seeds.
+
+**Why.** Exp 07 was one run per condition and showed a −12 dB regression that
+disagreed with its own val pool — likely noise. Confirm the repair with seeds.
+
+**Method.** Train 2 more seeds for each of max/avg (identical config otherwise,
+20 epochs, best-val). Aggregate detector-output AUC on the eval cells over the 3
+seeds per condition; report mean±std and the fraction of the optimum gap recovered.
+
+**Result — detector AUC vs. optimum (mean±std over 3 seeds):**
+
+| SNR | max-pool | avg-pool | optimum | gap recovered |
+|----:|---------:|---------:|--------:|--------------:|
+| −3  | 0.991±0.004 | 0.997±0.003 | 1.000 | 66% |
+| −6  | 0.943±0.008 | 0.983±0.007 | 1.000 | 70% |
+| −9  | 0.827±0.018 | 0.901±0.014 | 0.996 | 44% |
+| −12 | 0.775±0.016 | 0.811±0.040 | 0.963 | 19% |
+| −15 | 0.668±0.017 | 0.732±0.027 | 0.908 | 27% |
+
+**What we learned.**
+1. **The C3 repair is robust.** avg-pool > max-pool at **every** SNR, means
+   separated by more than the per-condition std at −3/−6/−9 (tight bands). The
+   Exp 07 −12 dB regression was single-run noise — it now recovers +19%.
+2. **Magnitude:** 66–70% of the gap recovered at −3/−6 dB, 44% at −9 dB, 19–27%
+   at −12/−15 dB. The residual gap **widens at low SNR**, so early pooling is the
+   dominant—but not the only—loss; the hardest SNRs lose signal elsewhere too
+   (a lead for future work, not claimed here).
+3. This is signature **figure #3** (`fig_repair.png`), now with error bands.
+
+**Decision / next.** C1–C3 and all three signature figures are drafted and firmed.
+Remaining contribution: **C4 / Q3** — the temporal-integration limit vs. the
+fixed-pattern noise floor (how Pd grows with frame count until the fixed pattern
+caps it; the whitening MF and the IR3D fixed-pattern model are already in place).

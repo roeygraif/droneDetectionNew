@@ -28,4 +28,4 @@ mlruns/
 # collapseprobe — generated synthetic data (regenerate with `python -m collapseprobe.dataset`)
 collapseprobe/data/
 # collapseprobe — transient training run logs (key numbers live in EXPERIMENTS.md)
-collapseprobe/train_detector*.log
+collapseprobe/train_*.log
