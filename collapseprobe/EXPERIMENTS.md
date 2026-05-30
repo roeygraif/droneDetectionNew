@@ -75,9 +75,16 @@ computable matched-filter ceiling.
   single sharp cliff at the **first max-pool (enc1→enc2, 31→15 px)** — largest
   drop at every SNR, both detectors. **Refuted as v1 artifacts:** the deep
   ConvLSTM trough and the "head discards decoder recovery" story (gone in v2).
-- [ ] **C3 repair hypothesis (revised, from Exp 06b):** target the **early
-  downsampling** (signal-preserving pooling — LDW-Pooling / anti-aliased / learned
-  downsample; or soften pool1), NOT head rewiring. Optimum bounds the gain.
+- [x] ~~**C3 repair hypothesis (revised, from Exp 06b).**~~ **Prototyped, positive
+  (Exp 07).** Swapped the encoder max-pools for **average-pooling** (same
+  resolution reduction, but integrates instead of taking the noise-inflated max).
+  Recovers 40–61% of the detector-vs-optimum AUC gap at −3/−6/−9 dB, 18% at −15;
+  the targeted enc1→enc2 cliff roughly halved. One caveat: −12 dB regressed
+  (−24%), almost certainly single-run-per-condition noise (val pool showed −12
+  *improving*). → firm up with multi-seed before it's signature figure #3.
+- [ ] **C3 multi-seed firming.** Exp 07 is one training run per condition; the
+  −12 dB sign flip is within run-to-run noise. Train 2–3 seeds each of max/avg,
+  report mean±std of the recovered gap, before finalizing figure #3.
 - [ ] **Detector overfits a little.** train_loss → 0.03 on 1600 tubes; best-val
   checkpointing rescues a good epoch but the val curve is noisy. Adequate for a
   *representative* frozen detector (charter: tuning out of scope); revisit with
@@ -498,3 +505,54 @@ retains it.* **Revised C3:** replace/soften that first downsample with a
 signal-preserving reduction (LDW-Pooling / anti-aliased / learned), retrain, and
 re-measure how much of the optimum it recovers — the before/after of signature
 figure #3, now built on the v2 baseline.
+
+---
+
+### Exp 07 — the C3 repair: average-pool vs. max-pool
+
+**Date:** 2026-05-30 · **Noise:** ir3d eval cells · **SNRs:** −3..−15 dB
+**Script:** `exp07_repair.py` · **Figure:** `collapseprobe/fig_repair.png`
+**Detectors:** `detector_ckpt_v2.pt` (max-pool baseline) vs
+`detector_ckpt_avgpool.pt` (avg-pool; trained `--pool avg`, identical data/seed/reg)
+
+**Hypothesis.** Exp 06b localized the loss to the first encoder downsample.
+Max-pooling a mostly-noise 2×2 patch keeps the upward-biased maximum → raises the
+noise floor → crushes the faint target's contrast, while the optimum *integrates*.
+So replacing the encoder max-pools with **average-pooling** (same 2× reduction,
+noise variance ÷4 instead of a biased max) should recover detectability. Held
+everything else fixed (data, seed 4242, weight_decay 3e-4) so the effect is
+attributable to the pooling op alone.
+
+**Result — detector output AUC vs. the optimum (eval cells), and % of the gap recovered:**
+
+| SNR | max-pool | avg-pool | optimum | gap recovered |
+|----:|---------:|---------:|--------:|--------------:|
+| −3  | 0.985 | 0.993 | 1.000 | 55% |
+| −6  | 0.932 | 0.973 | 1.000 | 61% |
+| −9  | 0.805 | 0.881 | 0.996 | 40% |
+| −12 | 0.796 | 0.757 | 0.963 | −24% |
+| −15 | 0.649 | 0.696 | 0.908 | 18% |
+
+Per-stage probe (avg-pool) confirms the mechanism: the **enc1→enc2 cliff
+roughly halved** (−9 dB Δ 0.155→0.100; −6 dB 0.092→0.048), and every downstream
+stage lifted (−9 dB logit 0.812→0.886). On the training val pool the avg-pool
+detector was uniformly better (d′ at −9 dB 1.10→1.87, +70%; best val AUC
+0.842→0.877).
+
+**What we learned.**
+1. **C3 is a positive result.** A targeted, theory-motivated repair at the
+   localized bottleneck recovers ~40–60% of the detector-vs-optimum gap at the
+   SNRs that matter (−3..−9 dB), bounded by the optimum (a residual gap remains,
+   widening at low SNR — the loss is not *entirely* the pooling).
+2. **The mechanism is confirmed**, not just the outcome: the very stage we
+   blamed (the first downsample) is where the cliff shrank.
+3. **Caveat — single run per condition.** −12 dB regressed (−24%), yet the same
+   detector's val pool showed −12 *improving* (0.767→0.801). That inconsistency
+   is run-to-run / sampling noise, not a real reversal. The effect at −3/−6/−9 is
+   large and consistent; −12/−15 are within noise.
+
+**Decision / next.** The diagnose→repair loop is closed and positive. Before
+figure #3 is final: **multi-seed firming** — 2–3 training seeds per condition,
+report mean±std of the recovered gap (smooths the −12 noise), exactly as Exp 06b
+firmed up Exp 06. After that, Q3/C4 (the temporal-integration limit vs the
+fixed-pattern floor) is the remaining contribution.

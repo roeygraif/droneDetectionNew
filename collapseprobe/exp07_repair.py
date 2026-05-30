@@ -1,0 +1,102 @@
+"""Experiment 07: the C3 repair — average-pool vs. max-pool, against the optimum.
+
+Exp 06b localized the detectability loss to the first encoder downsample. The
+detection-theory reason max-pooling hurts at low SNR: it keeps the (upward-biased)
+maximum of a mostly-noise patch, raising the noise floor, whereas the optimal
+detector integrates. So we retrained an identical detector with average-pooling
+(`--pool avg`) instead of max-pooling — everything else (data, seed, reg) held
+fixed — and here we measure how much of the detector-vs-optimum gap it recovers.
+
+This is the before/after of signature figure #3.
+
+Run:  python -m collapseprobe.exp07_repair
+Out:  console table + collapseprobe/fig_repair.png
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import numpy as np
+import torch
+
+ROOT = Path(__file__).resolve().parents[1]
+for _p in (str(ROOT), str(ROOT / "src")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
+
+from collapseprobe.dataset import DATA_DIR, _split_path, load_split  # noqa: E402
+from collapseprobe.net_probe import load_detector  # noqa: E402
+from collapseprobe.probing import detectability  # noqa: E402
+
+SNRS = (-3.0, -6.0, -9.0, -12.0, -15.0)
+MODELS = [("max-pool (baseline)", "detector_ckpt_v2.pt"),
+          ("avg-pool (C3 repair)", "detector_ckpt_avgpool.pt")]
+FIG = ROOT / "collapseprobe" / "fig_repair.png"
+
+
+def _device():
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+@torch.no_grad()
+def logits(model, X, device, batch=64):
+    out = []
+    for i in range(0, len(X), batch):
+        xb = torch.from_numpy(X[i:i + batch]).float().to(device)
+        out.append(model(xb)["track_logit"].cpu().numpy())
+    return np.concatenate(out)
+
+
+def main():
+    device = _device()
+    cells = {s: load_split(_split_path(DATA_DIR / "ir3d", s)) for s in SNRS}
+
+    # Optimum (same for all detectors — it's the data's ceiling).
+    opt = {}
+    for s in SNRS:
+        c = cells[s]; y = c["labels"]; w = c["wmf_scores"]
+        opt[s] = detectability(w[y == 1], w[y == 0])["auc"]
+
+    det_auc = {}
+    for name, ck in MODELS:
+        model, _ = load_detector(ROOT / "collapseprobe" / ck, device)
+        det_auc[name] = {}
+        for s in SNRS:
+            c = cells[s]; y = c["labels"]
+            lg = logits(model, c["tubes"], device)
+            det_auc[name][s] = detectability(lg[y == 1], lg[y == 0])["auc"]
+
+    names = [n for n, _ in MODELS]
+    print("=== Exp 07: C3 repair — detector output AUC vs. the optimum (IR3D eval cells) ===\n")
+    print(f"  {'SNR':>5}" + "".join(f"{n:>24}" for n in names) + f"{'optimum':>12}{'recovered':>11}")
+    print("  " + "-" * (5 + 24 * len(names) + 23))
+    for s in SNRS:
+        base, rep = det_auc[names[0]][s], det_auc[names[1]][s]
+        # fraction of the remaining gap to the optimum that the repair closed
+        frac = (rep - base) / (opt[s] - base) if opt[s] - base > 1e-6 else float("nan")
+        print(f"  {s:>5.0f}" + f"{base:>24.3f}{rep:>24.3f}" + f"{opt[s]:>12.3f}{frac:>10.0%}")
+
+    plt.figure(figsize=(7.5, 5))
+    xs = list(SNRS)
+    plt.plot(xs, [opt[s] for s in SNRS], "k--*", lw=1.5, ms=11, label="optimum (whitening MF)")
+    for name, _ in MODELS:
+        plt.plot(xs, [det_auc[name][s] for s in SNRS], marker="o", label=name)
+    plt.fill_between(xs, [det_auc[names[0]][s] for s in SNRS],
+                     [det_auc[names[1]][s] for s in SNRS], alpha=0.15, color="green",
+                     label="recovered by repair")
+    plt.xlabel("per-frame SNR (dB)"); plt.ylabel("detection AUC")
+    plt.title("C3 repair: max-pool → avg-pool, vs. the optimum")
+    plt.legend(fontsize=9); plt.grid(alpha=0.3); plt.tight_layout()
+    plt.savefig(FIG, dpi=130)
+    print(f"\n  figure -> {FIG}")
+
+
+if __name__ == "__main__":
+    main()

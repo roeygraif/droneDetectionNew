@@ -33,6 +33,7 @@ for _p in (str(ROOT), str(ROOT / "src")):
 from collapseprobe.dataset import ProbeDataConfig, _base_seq_cfg, build_split_for_snr  # noqa: E402
 from collapseprobe.ir_noise import make_fixed_pattern  # noqa: E402
 from collapseprobe.probing import detectability  # noqa: E402
+from collapseprobe.net_probe import set_pooling  # noqa: E402
 from models.recurrent_unet import TrackletRecurrentUNet, TrackletRecurrentUNetConfig  # noqa: E402
 
 CKPT = ROOT / "collapseprobe" / "detector_ckpt.pt"
@@ -92,6 +93,8 @@ def _parse_args():
     p.add_argument("--model-seed", type=int, default=SEED, help="init/shuffle seed")
     p.add_argument("--train-seed", type=int, default=TRAIN_DATA_SEED, help="train data seed")
     p.add_argument("--val-seed", type=int, default=VAL_DATA_SEED, help="val data seed")
+    p.add_argument("--pool", type=str, default="max", choices=["max", "avg"],
+                   help="encoder downsampling op ('avg' = the C3 repair)")
     p.add_argument("--out", type=str, default=str(CKPT), help="checkpoint path")
     return p.parse_args()
 
@@ -116,6 +119,7 @@ def main():
     model = TrackletRecurrentUNet(TrackletRecurrentUNetConfig(
         in_channels=Xtr.shape[2], base_channels=16, bottleneck_channels=32,
         use_convlstm=True, crop_size=Xtr.shape[-1])).to(device)
+    set_pooling(model, a.pool)  # C3 repair lives here: 'avg' swaps the max-pools
     opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=a.weight_decay)
     lossf = nn.BCEWithLogitsLoss()
 
@@ -147,7 +151,7 @@ def main():
     model.load_state_dict(best_state)
     torch.save({"model_state": best_state, "in_channels": int(Xtr.shape[2]),
                 "base_channels": 16, "bottleneck_channels": 32, "crop_size": int(Xtr.shape[-1]),
-                "train_snrs": list(TRAIN_SNRS), "best_val_auc": best_auc}, out_ckpt)
+                "pool": a.pool, "train_snrs": list(TRAIN_SNRS), "best_val_auc": best_auc}, out_ckpt)
     print(f"\n[ckpt] saved best-val model (AUC {best_auc:.3f}) -> {out_ckpt}", flush=True)
 
     # The headline: detector vs. the whitening optimum, per SNR (the Q1 gap).

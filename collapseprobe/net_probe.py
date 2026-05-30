@@ -19,6 +19,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import torch.nn as nn
 
 ROOT = Path(__file__).resolve().parents[1]
 for _p in (str(ROOT), str(ROOT / "src")):
@@ -26,6 +27,23 @@ for _p in (str(ROOT), str(ROOT / "src")):
         sys.path.insert(0, _p)
 
 from models.recurrent_unet import TrackletRecurrentUNet, TrackletRecurrentUNetConfig  # noqa: E402
+
+
+def set_pooling(model, kind: str = "max"):
+    """Swap the encoder downsampling op (the Exp 06b cliff is at pool1).
+
+    The pools carry no parameters, so this is safe before or after loading a
+    state_dict. "avg" replaces max-pooling (which inflates the noise floor at low
+    SNR) with averaging (matched-filter-like integration) — the C3 repair.
+    """
+    if kind == "max":
+        return model
+    if kind == "avg":
+        model.pool1 = nn.AvgPool2d(2)
+        model.pool2 = nn.AvgPool2d(2)
+    else:
+        raise ValueError(f"unknown pool kind {kind!r}")
+    return model
 
 STAGES = ["input", "enc1", "enc2", "enc3", "convlstm", "dec2", "dec1", "logit"]
 _HOOKED = {"enc1": "enc1", "enc2": "enc2", "enc3": "enc3",
@@ -39,6 +57,7 @@ def load_detector(ckpt_path, device):
         bottleneck_channels=ck["bottleneck_channels"], use_convlstm=True,
         crop_size=ck["crop_size"]))
     m.load_state_dict(ck["model_state"])
+    set_pooling(m, ck.get("pool", "max"))  # match the repaired architecture, if any
     m.to(device).eval()
     return m, ck
 
