@@ -64,17 +64,20 @@ computable matched-filter ceiling.
   oracle-centered IR3D tubes. Frozen, with a clear gap to the whitening optimum
   that widens at low SNR (AUC 0.94→0.63 over −3..−15 dB vs optimum 1.0→0.91).
   SNN dropped (abandoned by the user — never worked).
-- [x] ~~**Per-stage probing not built yet.**~~ **Done (Exp 06).** `net_probe.py` +
-  `exp06_layerwise.py`; figure `collapseprobe/fig_cliff.png`. **Finding:** a
-  U-shape — detectability erodes through the encoder downsampling to a trough at
-  the enc3/ConvLSTM 7×7 bottleneck, the U-Net skips recover it at dec1, then the
-  **track head discards the recovery** (it reads the bottleneck, not the decoder).
-- [ ] **C3 repair hypothesis to test (from Exp 06):** route high-resolution
-  decoder/skip features into the track head (or cut downsampling on the detection
-  path). The optimum (AUC ≈0.99 at −9 dB) bounds the achievable recovery.
-- [ ] **Confirm the U-shape is not an overfit artifact.** Detector is mildly
-  overfit (Exp 05); re-check the cliff with a better-regularized/more-data
-  detector and a second probe-split seed before making it a thesis claim.
+- [x] ~~**Per-stage probing not built yet.**~~ **Done (Exp 06; refined by 06b).**
+  `net_probe.py` + `exp06_layerwise.py`. Exp 06 (v1 detector) saw a U-shape; the
+  robustness pass (Exp 06b, v2 detector) showed the robust part is a **single
+  cliff at the first max-pool (enc1→enc2)** — the ConvLSTM-trough / head-discards
+  parts of the U were v1 overfitting artifacts. Use the 06b reading.
+- [x] ~~**Confirm the U-shape is not an overfit artifact.**~~ **Done (Exp 06b) —
+  and it refined the finding.** Multi-split error bars + a better detector (v2:
+  ~1.9× data, more reg, different init). **Robust:** input near-optimal, then a
+  single sharp cliff at the **first max-pool (enc1→enc2, 31→15 px)** — largest
+  drop at every SNR, both detectors. **Refuted as v1 artifacts:** the deep
+  ConvLSTM trough and the "head discards decoder recovery" story (gone in v2).
+- [ ] **C3 repair hypothesis (revised, from Exp 06b):** target the **early
+  downsampling** (signal-preserving pooling — LDW-Pooling / anti-aliased / learned
+  downsample; or soften pool1), NOT head rewiring. Optimum bounds the gain.
 - [ ] **Detector overfits a little.** train_loss → 0.03 on 1600 tubes; best-val
   checkpointing rescues a good epoch but the val curve is noisy. Adequate for a
   *representative* frozen detector (charter: tuning out of scope); revisit with
@@ -436,3 +439,62 @@ n=200/class.
 re-run Exp 06 with a 2nd split seed, confirm the U-shape. (ii) Prototype the C3
 repair (decoder-fed or reduced-downsampling track head), retrain, and re-measure
 how much of the optimum it recovers — the before/after of signature figure #3.
+
+---
+
+### Exp 06b — robustness of the cliff (error bars + a better detector)
+
+**Date:** 2026-05-30 · **Noise:** ir3d eval cells · **SNRs:** −6..−15 dB
+**Scripts:** `exp06_layerwise.py` (now multi-split), `train_detector.py` (CLI'd)
+**Detectors:** v1 `detector_ckpt.pt` (1600 tubes) and v2 `detector_ckpt_v2.pt`
+(3000 tubes, weight_decay 3e-4, init seed 4242, best-val AUC 0.842)
+**Figures:** `fig_cliff.png` (v1), `fig_cliff_v2.png` (v2)
+
+**Why.** Exp 06's U-shape rested on a mildly-overfit detector. Before it becomes a
+C1/C2 claim, confirm it survives (a) the probe split and (b) an independently
+trained, less-overfit detector. The v2 retrain also gives the clean baseline the
+C3 repair will need for a fair before/after.
+
+**Method.** (1) Re-run the per-stage probe over 5 train/test splits → mean±std per
+stage. (2) Retrain v2 (≈1.9× data, more regularization, different seed) → it is a
+genuinely better detector (per-SNR AUC up vs v1, gap to optimum intact). (3) Run
+the multi-split probe on v2 and compare the curve.
+
+**Result — per-stage probe AUC at −9 dB (mean over 5 splits), v1 vs v2:**
+
+| stage | v1 | v2 |
+|-------|---:|---:|
+| input    | 0.967 | 0.967 |
+| enc1     | 0.937 | 0.947 |
+| enc2     | 0.809 | 0.792 |
+| enc3     | 0.744 | 0.776 |
+| convlstm | 0.679 | **0.794** |
+| dec2     | 0.763 | 0.760 |
+| dec1     | 0.870 | 0.850 |
+| logit    | 0.728 | **0.812** |
+| optimum  | 0.995 | 0.995 |
+
+Per-stage error bars are small (±0.01–0.03) for both detectors → the curve shape
+is not probe-split noise. In v2 the **largest single drop is `enc1→enc2` at every
+SNR** (Δ = +0.09/+0.16/+0.19/+0.10 over −6/−9/−12/−15 dB).
+
+**What we learned.**
+1. **Robust finding (both detectors):** input is near-optimal, then detectability
+   falls off a **single cliff at the first max-pool (`enc1→enc2`, 31→15 px)** and
+   stays roughly flat afterward. The loss is *front-loaded* in early spatial
+   downsampling — the "downsampling erases the few-pixel target" mechanism (lit:
+   Remote Sensing 13(18):3608), now localized to the **first** pool.
+2. **v1 artifacts that did NOT replicate:** the deep **ConvLSTM trough**
+   (convlstm 0.68→0.79) and the **"track head discards the decoder recovery"**
+   story (logit 0.73→0.81, now level with dec1). These were products of the
+   overfit v1 detector, not the architecture. The robustness pass caught them
+   before they became claims — exactly its job (charter guardrail 1).
+3. The gap to the optimum is intact and large in the better detector (v2 −9 dB:
+   logit 0.81 vs optimum 0.995), so Q1's premise stands.
+
+**Decision / next.** C1/C2 now reads cleanly: *the detector loses faint-target
+detectability primarily at the first spatial downsampling, while the optimum
+retains it.* **Revised C3:** replace/soften that first downsample with a
+signal-preserving reduction (LDW-Pooling / anti-aliased / learned), retrain, and
+re-measure how much of the optimum it recovers — the before/after of signature
+figure #3, now built on the v2 baseline.

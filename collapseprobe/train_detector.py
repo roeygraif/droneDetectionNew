@@ -16,6 +16,7 @@ Out:  collapseprobe/detector_ckpt.pt  (+ printed detector-vs-optimum gap per SNR
 """
 from __future__ import annotations
 
+import argparse
 import sys
 import time
 from pathlib import Path
@@ -82,29 +83,45 @@ def score_all(model, X, device, batch=64, as_logit=False):
     return np.concatenate(out)
 
 
+def _parse_args():
+    p = argparse.ArgumentParser(description="Train the collapseprobe detector.")
+    p.add_argument("--n-train", type=int, default=N_TRAIN_PER_CLASS, help="tubes/class/SNR (train)")
+    p.add_argument("--n-val", type=int, default=N_VAL_PER_CLASS, help="tubes/class/SNR (val)")
+    p.add_argument("--epochs", type=int, default=EPOCHS)
+    p.add_argument("--weight-decay", type=float, default=WEIGHT_DECAY)
+    p.add_argument("--model-seed", type=int, default=SEED, help="init/shuffle seed")
+    p.add_argument("--train-seed", type=int, default=TRAIN_DATA_SEED, help="train data seed")
+    p.add_argument("--val-seed", type=int, default=VAL_DATA_SEED, help="val data seed")
+    p.add_argument("--out", type=str, default=str(CKPT), help="checkpoint path")
+    return p.parse_args()
+
+
 def main():
+    a = _parse_args()
+    out_ckpt = Path(a.out)
     t0 = time.time()
     device = _device()
-    torch.manual_seed(SEED); np.random.seed(SEED)
+    torch.manual_seed(a.model_seed); np.random.seed(a.model_seed)
     base = ProbeDataConfig(noise_model="ir3d", seed=SEED)
     # Same sensor (fixed pattern) as the eval cells: build_probe_dataset used seed+777.
     fixed = make_fixed_pattern(tuple(base.canvas_shape), base.ir_noise,
                                np.random.default_rng(base.seed + 777))
 
-    print(f"[data] generating train/val pools on {device} ...", flush=True)
-    Xtr, ytr, _, _ = build_pool(base, TRAIN_DATA_SEED, N_TRAIN_PER_CLASS, fixed)
-    Xva, yva, snr_va, wmf_va = build_pool(base, VAL_DATA_SEED, N_VAL_PER_CLASS, fixed)
+    print(f"[data] generating train/val pools on {device} "
+          f"(n_train={a.n_train}/cls, wd={a.weight_decay}) ...", flush=True)
+    Xtr, ytr, _, _ = build_pool(base, a.train_seed, a.n_train, fixed)
+    Xva, yva, snr_va, wmf_va = build_pool(base, a.val_seed, a.n_val, fixed)
     print(f"[data] train {tuple(Xtr.shape)}  val {tuple(Xva.shape)}  ({time.time()-t0:.0f}s)", flush=True)
 
     model = TrackletRecurrentUNet(TrackletRecurrentUNetConfig(
         in_channels=Xtr.shape[2], base_channels=16, bottleneck_channels=32,
         use_convlstm=True, crop_size=Xtr.shape[-1])).to(device)
-    opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
+    opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=a.weight_decay)
     lossf = nn.BCEWithLogitsLoss()
 
     n = len(Xtr)
     best_auc, best_state = -1.0, None
-    for ep in range(EPOCHS):
+    for ep in range(a.epochs):
         model.train()
         perm = torch.randperm(n)
         ep_loss = 0.0
@@ -130,8 +147,8 @@ def main():
     model.load_state_dict(best_state)
     torch.save({"model_state": best_state, "in_channels": int(Xtr.shape[2]),
                 "base_channels": 16, "bottleneck_channels": 32, "crop_size": int(Xtr.shape[-1]),
-                "train_snrs": list(TRAIN_SNRS), "best_val_auc": best_auc}, CKPT)
-    print(f"\n[ckpt] saved best-val model (AUC {best_auc:.3f}) -> {CKPT}", flush=True)
+                "train_snrs": list(TRAIN_SNRS), "best_val_auc": best_auc}, out_ckpt)
+    print(f"\n[ckpt] saved best-val model (AUC {best_auc:.3f}) -> {out_ckpt}", flush=True)
 
     # The headline: detector vs. the whitening optimum, per SNR (the Q1 gap).
     # Logit scores for a meaningful d′; AUC/Pd are rank-based so unaffected.
